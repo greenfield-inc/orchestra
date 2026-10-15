@@ -1,13 +1,10 @@
 """Render Excalidraw JSON to PNG using Playwright + headless Chromium.
 
-Usage:
-    cd .claude/skills/excalidraw-pr-diagrams/references
-    uv run python render_excalidraw.py <path-to-file.excalidraw> [--output path.png] [--scale 2] [--width 1920]
+Usage (from your working directory; --no-project keeps uv's environment out of the skill folder):
+    uv run --no-project --with "playwright>=1.40.0" python .claude/skills/excalidraw-pr-diagrams/references/render_excalidraw.py <path-to-file.excalidraw> [--output path.png] [--scale 2] [--width 1920]
 
 First-time setup:
-    cd .claude/skills/excalidraw-pr-diagrams/references
-    uv sync
-    uv run playwright install chromium
+    uv run --no-project --with "playwright>=1.40.0" playwright install chromium
 """
 
 from __future__ import annotations

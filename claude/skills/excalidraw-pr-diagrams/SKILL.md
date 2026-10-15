@@ -587,8 +587,10 @@ You cannot judge a diagram from JSON alone. After generating or editing the Exca
 ### How to Render
 
 ```bash
-cd .claude/skills/excalidraw-pr-diagrams/references && uv run python render_excalidraw.py <path-to-file.excalidraw>
+uv run --no-project --with "playwright>=1.40.0" python .claude/skills/excalidraw-pr-diagrams/references/render_excalidraw.py <path-to-file.excalidraw>
 ```
+
+Run it from your working directory, not from the skill folder: `--no-project` keeps uv's environment in its own cache, so nothing (no `.venv`, no `uv.lock`) is written into the skill folder. Never run `uv sync` or a plain `uv run` inside the skill folder.
 
 This outputs a PNG next to the `.excalidraw` file. Then use the available image viewer on the PNG to actually inspect it, such as the Read tool, `view_image`, or a browser screenshot.
 
@@ -647,12 +649,12 @@ The loop is done when:
 - The diagram would not be equally useful as a plain bullet list.
 
 ### First-Time Setup
-If the render script hasn't been set up yet:
+If Chromium for Playwright hasn't been installed yet:
 ```bash
-cd .claude/skills/excalidraw-pr-diagrams/references
-uv sync
-uv run playwright install chromium
+uv run --no-project --with "playwright>=1.40.0" playwright install chromium
 ```
+
+The browser goes to Playwright's user cache, outside the skill folder.
 
 ---
 
