@@ -66,6 +66,7 @@ expiry in SQLite.
 | `DO_PERMISSION_MODE` | macOS deploy | `bypassPermissions` | Implementer permission mode; outside test mode only `bypassPermissions` is accepted. |
 | `DO_MAX_TURNS` | macOS deploy | `300` | Implementer turn cap. |
 | `DO_MAX_BUDGET_USD` | no | none | Positive implementer budget cap. |
+| `SECURITY_LOOP_MAX_BUDGET_USD` | no | none | Per-turn budget cap for implementer sessions whose issue title starts with `Security loop ·`. Picked from the created webhook on the session's first turn and kept for every later turn; other sessions keep `DO_MAX_BUDGET_USD`. Claude and Claudex only. |
 | `BASH_DEFAULT_TIMEOUT_MS`, `BASH_MAX_TIMEOUT_MS` | no | `900000` each | Bash tool timeouts passed to every Claude-family turn; max must be at least the default. |
 | `SESSION_CONCURRENCY` | no | `5` | Concurrent sessions. |
 | `KEEPALIVE_MS` | no | `900000` | Progress keepalive interval for long turns. |
@@ -76,6 +77,15 @@ expiry in SQLite.
 | `DISPATCH_QUARANTINE_AGE_MS` | no | `86400000` | Age after which an ingested or orphaned dispatch bundle moves to quarantine. |
 | `DISPATCH_RESUME_GRACE_MS` | no | `600000` | Grace after a detached dispatch deadline before recovery resumes the parent. |
 | `GH_TOKEN`, `GITHUB_TOKEN` | no | none | Repository-scoped bot token passed to sessions. |
+
+### Security-loop timer
+
+Read by `dist/security-loop-cli.js`, the daily timer ([macos.md](macos.md#security-loop-timer)), from the same env file. It also reads `LINEAR_API_KEY` and `IMPLEMENTER_APP_ACTOR_ID`.
+
+| Variable | Required | Default | Meaning |
+|---|---|---|---|
+| `SECURITY_LOOP_TEAM` | for the timer | none | Linear team key the loop issues go in. |
+| `SECURITY_LOOP_SUBSCRIBERS` | for the timer | none | Comma-separated emails of the Linear users subscribed to each new loop issue. |
 
 ### Linear MCP, browser, simulator, artifacts, notifications
 

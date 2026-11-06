@@ -15,7 +15,7 @@ load_site_env() {
     [[ $line == *=* ]] || site_die "site config: malformed line: $line" || return
     key=${line%%=*}; value=${line#*=}
     case $key in
-      DAEMON_PUBLIC_HOSTNAME|DAEMON_TUNNEL_NAME|DAEMON_SERVICE_USER|DAEMON_SERVICE_HOME|DAEMON_LAUNCHD_PREFIX|DAEMON_SOURCE_REPO_URL) ;;
+      DAEMON_PUBLIC_HOSTNAME|DAEMON_TUNNEL_NAME|DAEMON_SERVICE_USER|DAEMON_SERVICE_HOME|DAEMON_LAUNCHD_PREFIX|DAEMON_SOURCE_REPO_URL|DAEMON_SECURITY_LOOP) ;;
       *) site_die "site config: unknown key: $key" || return ;;
     esac
     printf -v "$key" '%s' "$value"
@@ -26,6 +26,8 @@ load_site_env() {
   : "${DAEMON_LAUNCHD_PREFIX:?site config: DAEMON_LAUNCHD_PREFIX is required}"
   DAEMON_TUNNEL_NAME=${DAEMON_TUNNEL_NAME:-linear-agent}
   DAEMON_SOURCE_REPO_URL=${DAEMON_SOURCE_REPO_URL:-https://github.com/dcouple/orchestra.git}
+  DAEMON_SECURITY_LOOP=${DAEMON_SECURITY_LOOP:-0}
+  [[ $DAEMON_SECURITY_LOOP == 0 || $DAEMON_SECURITY_LOOP == 1 ]] || site_die "site config: DAEMON_SECURITY_LOOP must be 0 or 1" || return
   # Values are substituted with sed using | as the delimiter and land in
   # plists, sudoers, and YAML - keep them to the characters those accept.
   [[ $DAEMON_SERVICE_USER =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || site_die "site config: invalid DAEMON_SERVICE_USER: $DAEMON_SERVICE_USER" || return
@@ -37,8 +39,9 @@ load_site_env() {
   DAEMON_LABEL=$DAEMON_LAUNCHD_PREFIX.linear-agent-daemon
   PROXY_LABEL=$DAEMON_LAUNCHD_PREFIX.cliproxyapi
   TUNNEL_LABEL=$DAEMON_LAUNCHD_PREFIX.cloudflared
+  SECURITY_LOOP_LABEL=$DAEMON_LAUNCHD_PREFIX.security-loop
   export DAEMON_PUBLIC_HOSTNAME DAEMON_TUNNEL_NAME DAEMON_SERVICE_USER DAEMON_SERVICE_HOME \
-    DAEMON_LAUNCHD_PREFIX DAEMON_SOURCE_REPO_URL DAEMON_LABEL PROXY_LABEL TUNNEL_LABEL
+    DAEMON_LAUNCHD_PREFIX DAEMON_SOURCE_REPO_URL DAEMON_SECURITY_LOOP DAEMON_LABEL PROXY_LABEL TUNNEL_LABEL SECURITY_LOOP_LABEL
 }
 
 # wait_for_network [HOST...] - blocks until one of the hosts resolves, then
@@ -91,17 +94,18 @@ render_site_template() {
 }
 
 # render_site_templates DIR - renders every template the provisioner installs
-# into DIR: <label>.plist for the three services, sudoers, the cloudflared
+# into DIR: <label>.plist for the three services and the security-loop timer, sudoers, the cloudflared
 # config (still carrying @TUNNEL_ID@), and the Agent Farm wrapper.
 render_site_templates() {
   local src=${SITE_TEMPLATE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)} out=$1 rendered
   render_site_template "$src/linear-agent-daemon.plist.template" > "$out/$DAEMON_LABEL.plist"
   render_site_template "$src/cliproxyapi.plist.template" > "$out/$PROXY_LABEL.plist"
   render_site_template "$src/cloudflared.plist.template" > "$out/$TUNNEL_LABEL.plist"
+  render_site_template "$src/security-loop.plist.template" > "$out/$SECURITY_LOOP_LABEL.plist"
   render_site_template "$src/sudoers-services.template" > "$out/sudoers"
   render_site_template "$src/cloudflared-config.yml.template" > "$out/cloudflared-config.yml"
   render_site_template "$src/agent-farm.sh.template" > "$out/agent-farm"
-  for rendered in "$out/$DAEMON_LABEL.plist" "$out/$PROXY_LABEL.plist" "$out/$TUNNEL_LABEL.plist" "$out/sudoers" "$out/cloudflared-config.yml" "$out/agent-farm"; do
+  for rendered in "$out/$DAEMON_LABEL.plist" "$out/$PROXY_LABEL.plist" "$out/$TUNNEL_LABEL.plist" "$out/$SECURITY_LOOP_LABEL.plist" "$out/sudoers" "$out/cloudflared-config.yml" "$out/agent-farm"; do
     ! grep -qE '@(SERVICE_USER|SERVICE_HOME|LAUNCHD_PREFIX|PUBLIC_HOSTNAME)@' "$rendered" || site_die "unrendered placeholder in $rendered" || return
   done
 }

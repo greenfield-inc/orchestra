@@ -169,6 +169,23 @@ run the mutating preflight during maintenance. After a host restart, run the
 probe before any GUI login. If it fails with a session-binding error, log in
 once, re-run it, and record a console session as a host requirement.
 
+## Security-loop timer
+
+With `DAEMON_SECURITY_LOOP=1` in the site config, provisioning installs the
+`<prefix>.security-loop` launchd job. At 07:00 on the host's clock it runs
+`dist/security-loop-cli.js` through `run-daemon.sh`'s env loader. If an open
+issue labeled `security-loop` exists in `SECURITY_LOOP_TEAM`, the timer replies
+in that issue's newest implementer agent session, and the daemon resumes the
+same worktree and PR. Otherwise it creates `Security loop · <date>` from
+[`daemon/ops/security-loop-issue.md`](../../daemon/ops/security-loop-issue.md),
+labels it (creating the label if missing), subscribes
+`SECURITY_LOOP_SUBSCRIBERS`, and delegates it to the implementer app. Each run
+logs one JSON line to `~/Library/Logs/security-loop.log` in the service user's
+home. Set the keys in [configuration.md](configuration.md#security-loop-timer)
+first. Run it once by hand with
+`sudo launchctl kickstart system/<prefix>.security-loop`. Setting the key back
+to `0` and provisioning again removes the job.
+
 ## Boot behavior
 
 `RunAtLoad` and `KeepAlive` start the three services with no console login.

@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { ArtifactNotFoundError, type ArtifactFile, ArtifactStore, InvalidArtifactError } from "./artifacts.js";
 import type { AppName, Config } from "./config.js";
 import type { EventLog } from "./eventlog.js";
+import { isSecurityLoopTitle } from "./security-loop.js";
 import { readCliproxyManagementKey } from "./proxy-env.js";
 import { verifyWebhook } from "./verify.js";
 import { renderViewer } from "./viewer.js";
@@ -107,6 +108,8 @@ export class WebhookServer {
         signal: isIssue ? undefined : stringField(agentActivity?.signal),
         issueId: isIssue ? stringField(issue?.id) : stringField(session?.issueId) ?? stringField(issue?.id),
         issueIdentifier: stringField(issue?.identifier),
+        maxBudgetUsd: app === "implementer" && isSecurityLoopTitle(stringField(issue?.title))
+          ? this.options.config.securityLoopMaxBudgetUsd : undefined,
         webhookId: stringField(verified.payload.webhookId),
         receivedAt: Date.now(),
         rawBody,

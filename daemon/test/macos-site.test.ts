@@ -121,6 +121,7 @@ describe("macOS site config", () => {
       "org.example.cliproxyapi.plist",
       "org.example.cloudflared.plist",
       "org.example.linear-agent-daemon.plist",
+      "org.example.security-loop.plist",
       "sudoers",
     ]);
     for (const file of files) {
@@ -131,6 +132,10 @@ describe("macOS site config", () => {
     expect(daemonPlist).toContain("<string>org.example.linear-agent-daemon</string>");
     expect(daemonPlist).toContain("<string>svcagent</string>");
     expect(daemonPlist).toContain("/Users/svcagent/linear-agent-daemon");
+    const timer = readFileSync(join(out, "org.example.security-loop.plist"), "utf8");
+    expect(timer).toContain("<string>org.example.security-loop</string>");
+    expect(timer).toMatch(/<string>\/usr\/local\/sbin\/run-daemon.sh<\/string>\s*<string>dist\/security-loop-cli.js<\/string>/);
+    expect(timer).toMatch(/<key>Hour<\/key><integer>7<\/integer>\s*<key>Minute<\/key><integer>0<\/integer>/);
     const tunnel = readFileSync(join(out, "cloudflared-config.yml"), "utf8");
     expect(tunnel).toContain("hostname: agent.example.org");
     expect(tunnel).toContain("tunnel: @TUNNEL_ID@");
@@ -146,6 +151,7 @@ describe("macOS site config", () => {
       ["DAEMON_SERVICE_USER=svc\nDAEMON_LAUNCHD_PREFIX=org.x\nDAEMON_PUBLIC_HOSTNAME=a|b.com\n", "invalid DAEMON_PUBLIC_HOSTNAME"],
       ["DAEMON_SERVICE_USER=Svc Name\nDAEMON_LAUNCHD_PREFIX=org.x\nDAEMON_PUBLIC_HOSTNAME=a.example.com\n", "invalid DAEMON_SERVICE_USER"],
       ["DAEMON_SERVICE_USER=svc\nDAEMON_LAUNCHD_PREFIX=org.x\nDAEMON_PUBLIC_HOSTNAME=a.example.com\nDAEMON_SOURCE_REPO_URL=git@github.com:x/y.git\n", "https://"],
+      ["DAEMON_SERVICE_USER=svc\nDAEMON_LAUNCHD_PREFIX=org.x\nDAEMON_PUBLIC_HOSTNAME=a.example.com\nDAEMON_SECURITY_LOOP=yes\n", "DAEMON_SECURITY_LOOP must be 0 or 1"],
     ];
     for (const [site, message] of cases) {
       const { result } = renderWith(site);

@@ -4714,4 +4714,42 @@ describe("SessionWorker", () => {
     expect(starts[1].args).not.toContain("--claudex-runtime");
     log.close();
   });
+  it("caps a security-loop session from its first turn's issue title, for every later turn", async () => {
+    const seeded = setup();
+    const { log } = seeded;
+    seeded.config.securityLoopMaxBudgetUsd = 15;
+    process.env.CLAUDE_FAKE_MODE = "happy";
+    process.env.CLAUDE_FAKE_ARGS_FILE = join(seeded.dir, "budget.jsonl");
+    const worker = new SessionWorker(log, new Poster() as unknown as LinearGateway, seeded.config, { pollMs: 10 });
+    const server = new WebhookServer({ config: seeded.config, log, onInserted: () => worker.trigger() });
+    await worker.start();
+    const address = await server.listen();
+    const send = async (delivery: string, payload: Record<string, unknown>) => {
+      const body = JSON.stringify({ webhookTimestamp: Date.now(), ...payload });
+      const signature = createHmac("sha256", seeded.config.apps.implementer.webhookSecret).update(body).digest("hex");
+      const response = await fetch(`http://127.0.0.1:${address.port}/webhook/implementer`,
+        { method: "POST", body, headers: { "Linear-Signature": signature, "Linear-Delivery": delivery } });
+      expect(response.status).toBe(200);
+    };
+    const budgets = () => readFileSync(process.env.CLAUDE_FAKE_ARGS_FILE!, "utf8").trim().split("\n")
+      .map(line => JSON.parse(line) as { args: string[]; phase: string })
+      .filter(row => row.phase === "start")
+      .map(row => row.args[row.args.indexOf("--max-budget-usd") + 1]);
+    try {
+      await send("loop-created", { action: "created", agentSession: { id: "loop-session",
+        issue: { id: "loop-issue", identifier: "ENG-60", title: "Security loop · 2026-11-06" } } });
+      await waitFor(() => log.turnStates()[0]?.status === "done");
+      await send("loop-reply", { action: "prompted", agentSession: { id: "loop-session" },
+        agentActivity: { id: "reply-1", body: "Daily run, 2026-11-07." } });
+      await waitFor(() => log.turnStates()[1]?.status === "done");
+      await send("other-created", { action: "created", agentSession: { id: "other-session",
+        issue: { id: "other-issue", identifier: "ENG-61", title: "Add a settings page" } } });
+      await waitFor(() => log.turnStates()[2]?.status === "done");
+      expect(budgets()).toEqual(["15", "15", "10"]);
+    } finally {
+      await worker.stop();
+      await server.close();
+      log.close();
+    }
+  });
 });
