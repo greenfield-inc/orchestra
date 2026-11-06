@@ -62,6 +62,8 @@ function fixture(scriptDir = ops, sourceDir = resolve(".")) {
       PROXY_LABEL=fixture.proxy
       DAEMON_LABEL=fixture.daemon
       TUNNEL_LABEL=fixture.tunnel
+      SECURITY_LOOP_LABEL=fixture.security-loop
+      DAEMON_SECURITY_LOOP=0
       RENDER_DIR="$AGENT_HOME/render"
       site_changed=0
       proxy_changed=0

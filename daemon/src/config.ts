@@ -84,6 +84,7 @@ export interface Config {
   doPermissionMode: string;
   doMaxTurns: number;
   doMaxBudgetUsd?: number;
+  securityLoopMaxBudgetUsd?: number;
   sessionConcurrency: number;
   keepaliveMs: number;
   linearApiKey?: string;
@@ -103,6 +104,14 @@ function positiveInteger(env: NodeJS.ProcessEnv, name: string, fallback: number)
   if (raw === undefined) return fallback;
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer`);
+  return value;
+}
+
+function positiveNumber(env: NodeJS.ProcessEnv, name: string): number | undefined {
+  const raw = env[name]?.trim();
+  if (raw === undefined || raw === "") return undefined;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a positive number`);
   return value;
 }
 
@@ -215,6 +224,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (doMaxBudgetUsd !== undefined && (!Number.isFinite(doMaxBudgetUsd) || doMaxBudgetUsd <= 0)) {
     throw new Error("DO_MAX_BUDGET_USD must be a positive number");
   }
+  const securityLoopMaxBudgetUsd = positiveNumber(env, "SECURITY_LOOP_MAX_BUDGET_USD");
   return {
     port: positiveInteger(env, "PORT", 8787),
     bindAddr: env.BIND_ADDR?.trim() || "127.0.0.1",
@@ -282,6 +292,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     doPermissionMode,
     doMaxTurns: positiveInteger(env, "DO_MAX_TURNS", 300),
     ...(doMaxBudgetUsd !== undefined ? { doMaxBudgetUsd } : {}),
+    ...(securityLoopMaxBudgetUsd !== undefined ? { securityLoopMaxBudgetUsd } : {}),
     sessionConcurrency: positiveInteger(env, "SESSION_CONCURRENCY", 5),
     keepaliveMs: positiveInteger(env, "KEEPALIVE_MS", 900_000),
     ...(linearApiKey ? { linearApiKey } : {}),

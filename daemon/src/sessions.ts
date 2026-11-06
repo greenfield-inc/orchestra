@@ -690,6 +690,7 @@ export class SessionWorker {
         }),
       );
     };
+    const maxBudgetUsd = session.maxBudgetUsd ?? this.config.doMaxBudgetUsd;
     const common = {
       cwd: worktree.path,
       permissionMode: implementer
@@ -698,9 +699,7 @@ export class SessionWorker {
       maxTurns: implementer
         ? this.config.doMaxTurns
         : this.config.claudeMaxTurns,
-      ...(implementer && this.config.doMaxBudgetUsd !== undefined
-        ? { maxBudgetUsd: this.config.doMaxBudgetUsd }
-        : {}),
+      ...(implementer && maxBudgetUsd != null ? { maxBudgetUsd } : {}),
       ...(this.config.mcpEnvPassthrough
         ? { mcpEnvPassthrough: this.config.mcpEnvPassthrough }
         : {}),

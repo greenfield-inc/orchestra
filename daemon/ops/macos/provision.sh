@@ -225,6 +225,13 @@ dry_inventory() {
     record service-cloudflared "pending-human: create tunnel as $AGENT"
   fi
   sudo test -s "$CONFIG_DIR/env" && record daemon-deploy already-correct || record daemon-deploy pending-human
+  if [[ $DAEMON_SECURITY_LOOP == 1 ]]; then
+    file_correct "$RENDER_DIR/$SECURITY_LOOP_LABEL.plist" "/Library/LaunchDaemons/$SECURITY_LOOP_LABEL.plist" 0644 root wheel \
+      && sudo /bin/launchctl print "system/$SECURITY_LOOP_LABEL" >/dev/null 2>&1 \
+      && record security-loop-timer already-correct || record security-loop-timer would-apply
+  else
+    sudo test -e "/Library/LaunchDaemons/$SECURITY_LOOP_LABEL.plist" && record security-loop-timer would-remove || record security-loop-timer disabled
+  fi
   provision_agent_farm
   print_summary
 }
@@ -564,6 +571,28 @@ if [[ -n $management_json ]] && python3 -c 'import json,sys; p=json.load(sys.std
 if (( credential_status == 0 )); then
   if agent env CLIPROXY_ENV_FILE="$CLIPROXY_ENV" CLIPROXY_VERSION_MARKER="$CLIPROXY_MARKER" EXPECTED_PROXY_VERSION="$CLIPROXY_VERSION" TARGET_CONFIG="$AGENT_HOME/.codex/config.toml" ORCHESTRA_CODEX_REAL_BIN="$AGENT_HOME/.codex-managed/bin/codex" "$AGENT_HOME/linear-agent-daemon/ops/codex-provider-gate.sh"; then record provider-gate already-correct; else record provider-gate pending-human; fi
 else record provider-gate pending-human; fi
+
+# The daily security-loop timer (site key DAEMON_SECURITY_LOOP=1). It never runs at load;
+# 'sudo launchctl kickstart system/<label>' runs it once by hand.
+security_loop_installed=/Library/LaunchDaemons/$SECURITY_LOOP_LABEL.plist
+if [[ $DAEMON_SECURITY_LOOP == 1 ]]; then
+  security_loop_changed=0
+  install_if_changed "$RENDER_DIR/$SECURITY_LOOP_LABEL.plist" "$security_loop_installed" 0644 root wheel && security_loop_changed=1
+  if ! sudo /bin/launchctl print "system/$SECURITY_LOOP_LABEL" >/dev/null 2>&1; then
+    sudo /bin/launchctl bootstrap system "$security_loop_installed"; security_loop_changed=1
+  elif (( security_loop_changed )); then
+    sudo /bin/launchctl bootout "system/$SECURITY_LOOP_LABEL"
+    sudo /bin/launchctl bootstrap system "$security_loop_installed"
+  fi
+  sudo /bin/launchctl print "system/$SECURITY_LOOP_LABEL" >/dev/null 2>&1 || fail "$SECURITY_LOOP_LABEL did not verify"
+  (( security_loop_changed )) && record security-loop-timer applied || record security-loop-timer already-correct
+elif sudo test -e "$security_loop_installed"; then
+  sudo /bin/launchctl bootout "system/$SECURITY_LOOP_LABEL" 2>/dev/null || true
+  sudo rm -f /Library/LaunchDaemons/"$SECURITY_LOOP_LABEL".plist
+  record security-loop-timer removed
+else
+  record security-loop-timer disabled
+fi
 
 # Optional harness dependencies converge only after the core daemon steps.
 provision_agent_farm

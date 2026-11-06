@@ -15,6 +15,8 @@ export interface AppendEvent {
   sourceActivityId?: string | undefined;
   issueId?: string | undefined;
   issueIdentifier?: string | undefined;
+  // Per-turn spend cap for the session this event starts; kept for the session's life.
+  maxBudgetUsd?: number | undefined;
   webhookId?: string | undefined;
   receivedAt: number;
   rawBody: Buffer;
@@ -45,6 +47,8 @@ export interface SessionRow {
   rootSpanId: string;
   startedAt: number;
   completedAt: number | null;
+  // Only getSession reads it.
+  maxBudgetUsd?: number | null;
 }
 export interface ProviderStateRow {
   provider: string;
@@ -375,6 +379,7 @@ export class EventLog {
         fallback_cause TEXT,
         profile TEXT CHECK(profile IS NULL OR profile IN ('fable','sol')),
         profile_fallback INTEGER,
+        max_budget_usd REAL,
         browser_required INTEGER NOT NULL DEFAULT 0,
         browser_run_id TEXT,
         mode TEXT NOT NULL DEFAULT 'planner',
@@ -683,6 +688,10 @@ export class EventLog {
       this.db
         .prepare("ALTER TABLE sessions ADD COLUMN profile_fallback INTEGER")
         .run();
+    if (!columns.has("max_budget_usd"))
+      this.db
+        .prepare("ALTER TABLE sessions ADD COLUMN max_budget_usd REAL")
+        .run();
     if (!columns.has("browser_required"))
       this.db
         .prepare(
@@ -967,10 +976,11 @@ export class EventLog {
         this.db
           .prepare(
             `INSERT INTO sessions
-          (linear_session_id, app, issue_id, issue_identifier, profile, runtime, mode, status, last_seen_at,trace_id,root_span_id,started_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?,?,?,?)
+          (linear_session_id, app, issue_id, issue_identifier, profile, runtime, mode, status, last_seen_at,trace_id,root_span_id,started_at,max_budget_usd)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?,?,?,?,?)
           ON CONFLICT(linear_session_id) DO UPDATE SET
             issue_id=COALESCE(excluded.issue_id, sessions.issue_id),
+            max_budget_usd=COALESCE(sessions.max_budget_usd, excluded.max_budget_usd),
             issue_identifier=COALESCE(excluded.issue_identifier, sessions.issue_identifier),
             last_seen_at=excluded.last_seen_at`,
           )
@@ -986,6 +996,7 @@ export class EventLog {
             randomHex(16),
             randomHex(8),
             event.receivedAt,
+            event.maxBudgetUsd ?? null,
           );
         if (event.action === "created" && event.issueId) {
           this.db
@@ -1257,7 +1268,8 @@ export class EventLog {
       runtime, fallback_cause fallbackCause, profile, profile_fallback profileFallback,
       browser_required browserRequired, browser_run_id browserRunId,
       mode, status, last_seen_at lastSeenAt, last_seen_activity_at lastSeenActivityAt,
-      trace_id traceId,root_span_id rootSpanId,started_at startedAt,completed_at completedAt FROM sessions WHERE linear_session_id=?`,
+      trace_id traceId,root_span_id rootSpanId,started_at startedAt,completed_at completedAt,
+      max_budget_usd maxBudgetUsd FROM sessions WHERE linear_session_id=?`,
       )
       .get(linearSessionId) as SessionRow | undefined;
   }

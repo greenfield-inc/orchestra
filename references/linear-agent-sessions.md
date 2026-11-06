@@ -134,7 +134,7 @@ silence in the thread is not evidence of death inside the horizon.
   sessions active within roughly the last six hours. If a reply produced nothing past the stale
   horizon, that is the first hypothesis.
 - **An implementer resume spends again**: the resumed child gets a fresh
-  `DO_MAX_TURNS` / `DO_MAX_BUDGET_USD` allowance on Claude/Claudex. Native
+  `DO_MAX_TURNS` / `DO_MAX_BUDGET_USD` allowance (or the session's own cap) on Claude/Claudex. Native
   Codex has no daemon turn or budget cap.
 - **Any daemon operation in flight (restart, config, update) pauses all turn
   claims** while webhooks keep queueing. A workspace where nothing starts for

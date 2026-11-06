@@ -12,4 +12,5 @@ set -a
 set +a
 wait_for_network
 cd "$DAEMON_SERVICE_HOME/linear-agent-daemon"
-exec /opt/homebrew/opt/node@22/bin/node dist/index.js
+# The daemon by default; launchd jobs that share its env pass their own entry.
+exec /opt/homebrew/opt/node@22/bin/node "${1:-dist/index.js}"
