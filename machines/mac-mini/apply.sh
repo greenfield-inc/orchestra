@@ -340,7 +340,7 @@ fi
 
 heartbeat_key=/usr/local/etc/dcouple/heartbeat-sa.json
 if ! sudo test -f "$heartbeat_key"; then
-  printf '\nPENDING: heartbeat key is absent; run gcp/setup-monitoring.sh first, then re-run apply.sh.\n'
+  printf '\nPENDING: heartbeat key is absent; the heartbeat waits for a keyless credential (no SA keys on disk).\n'
   record heartbeat pending-human
 else
   key_changed=0
