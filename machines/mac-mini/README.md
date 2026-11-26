@@ -4,6 +4,8 @@ This directory is the versioned source of truth for the always-on Mac Mini.
 It installs the command-line Tailscale system daemon, tmux, SSH hardening,
 power/session settings, Remote Management (ARD), and a tunnel-gated Cloud
 Logging heartbeat. It is orchestra-only and is not copied by either sync script.
+The gcloud folder script and agent rule the Mini shares with the MacBook are in
+[../gcloud/](../gcloud/README.md).
 
 ## Safety rules
 
@@ -50,16 +52,16 @@ fails again.
 ## Apply
 
 Run monitoring setup first from the MacBook; it creates a least-privilege
-GCP service account in `<gcp-project>` and copies its key to the Mini. The
-project is set in the script; pass the alert email as an argument and the
-SSH host as `MINI_HOST`:
+GCP service account in `<gcp-project>`, the log metric and the alert policy.
+It creates no service-account key (no SA keys on disk), so the heartbeat
+stays pending until it has a keyless credential. The project is set in the
+script; pass the alert email as an argument and the SSH host as `MINI_HOST`:
 
 ```bash
 MINI_HOST=<mini-alias> machines/mac-mini/gcp/setup-monitoring.sh <alert-email>
 ```
 
-Preview its GCP and remote-key decisions without creating or installing
-anything:
+Preview its GCP decisions without creating anything:
 
 ```bash
 MINI_HOST=<mini-alias> machines/mac-mini/gcp/setup-monitoring.sh --dry-run <alert-email>
@@ -127,5 +129,5 @@ After a restart, run the daemon's simulator probe before any GUI login; see
 - `apply.sh` - idempotent Mini configuration.
 - `bin/` - MacBook restart/update wrappers and the installed heartbeat.
 - `launchd/` - system heartbeat LaunchDaemon.
-- `gcp/` - idempotent Cloud Logging/Monitoring provisioning.
+- `gcp/` - idempotent Cloud Logging/Monitoring provisioning (no key).
 - `docs/click-list.md` - GUI handoffs and their read-back checks.

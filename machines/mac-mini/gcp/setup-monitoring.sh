@@ -42,7 +42,6 @@ POLICY_DISPLAY='Mac Mini heartbeat absent'
 MINI_HOST=${MINI_HOST:-mini}
 
 command -v gcloud >/dev/null || { printf 'gcloud is required\n' >&2; exit 1; }
-command -v scp >/dev/null || { printf 'scp is required\n' >&2; exit 1; }
 [[ $EMAIL =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]] || { printf 'invalid email address\n' >&2; exit 1; }
 gcloud projects describe "$PROJECT" --format='value(projectId)' >/dev/null
 if (( DRY_RUN )); then printf 'DRY RUN: inspecting state; no changes will be made.\n'; fi
@@ -85,45 +84,13 @@ else
   fi
 fi
 
+# No service-account key is created or copied: SA keys stay off disk
+# (machines/gcloud/README.md). The heartbeat stays uninstalled until it has a
+# keyless credential.
 if ssh "$MINI_HOST" 'sudo test -f /usr/local/etc/dcouple/heartbeat-sa.json'; then
-  printf 'service-account-key: already-exists-on-mini\n'
+  printf 'service-account-key: WARNING a key file is on the Mini; remove it and its IAM key\n' >&2
 else
-  if (( DRY_RUN )); then
-    printf 'service-account-key: would-create-and-install\n'
-  else
-    key_file=$(mktemp /tmp/mac-mini-heartbeat-key.XXXXXX)
-    created_key_id=''
-    key_install_complete=0
-    cleanup_key_install() {
-      local cleanup_status=$? cleanup_key_id=$created_key_id
-      trap - EXIT
-      if [[ -z $cleanup_key_id && -s $key_file ]]; then
-        cleanup_key_id=$(plutil -extract private_key_id raw -o - "$key_file" 2>/dev/null || true)
-      fi
-      if (( key_install_complete == 0 )) && [[ -n $cleanup_key_id ]]; then
-        printf 'service-account-key: remote install failed; revoking key %s\n' "$cleanup_key_id" >&2
-        if ! gcloud iam service-accounts keys delete "$cleanup_key_id" \
-          --iam-account="$SA_EMAIL" --project="$PROJECT" --quiet; then
-          printf 'ERROR: failed to revoke orphaned service-account key %s\n' "$cleanup_key_id" >&2
-        fi
-      fi
-      rm -f "$key_file"
-      exit "$cleanup_status"
-    }
-    trap cleanup_key_install EXIT
-    chmod 0600 "$key_file"
-    gcloud iam service-accounts keys create "$key_file" \
-      --iam-account="$SA_EMAIL" --project="$PROJECT"
-    created_key_id=$(plutil -extract private_key_id raw -o - "$key_file")
-    [[ -n $created_key_id ]] || { printf 'created service-account key has no private_key_id\n' >&2; exit 1; }
-    ssh "$MINI_HOST" 'sudo install -d -o root -g wheel -m 0755 /usr/local/etc/dcouple'
-    scp "$key_file" "$MINI_HOST:/tmp/mac-mini-heartbeat-sa.json"
-    ssh "$MINI_HOST" 'sudo install -o root -g wheel -m 0600 /tmp/mac-mini-heartbeat-sa.json /usr/local/etc/dcouple/heartbeat-sa.json && rm -f /tmp/mac-mini-heartbeat-sa.json'
-    key_install_complete=1
-    rm -f "$key_file"
-    trap - EXIT
-    printf 'service-account-key: created-and-installed\n'
-  fi
+  printf 'service-account-key: none (not created by design)\n'
 fi
 
 log_filter='logName="projects/bloom-agents/logs/mac-mini-heartbeat"'

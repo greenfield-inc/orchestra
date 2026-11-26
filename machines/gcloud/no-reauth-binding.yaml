@@ -1,0 +1,20 @@
+# Access Context Manager binding file for each org's gcloud-no-reauth@ group:
+# no reauth for the gcloud CLI and ADC clients only. Every other app keeps the
+# org's session control. Used by the create command in README.md.
+scopedAccessSettings:
+- scope:
+    clientScope:
+      restrictedClientApplication:
+        clientId: 32555940559.apps.googleusercontent.com
+  activeSettings:
+    sessionSettings:
+      sessionLength: 0s
+      sessionLengthEnabled: false
+- scope:
+    clientScope:
+      restrictedClientApplication:
+        clientId: 764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com
+  activeSettings:
+    sessionSettings:
+      sessionLength: 0s
+      sessionLengthEnabled: false
